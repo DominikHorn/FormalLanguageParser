@@ -3,16 +3,21 @@ package com.backusnaurparser.parser;
 import java.util.*;
 
 import com.backusnaurparser.helper.LanguageParseException;
+import com.backusnaurparser.helper.SyntaxHelper;
 
 public class SyntaxTree {
-	private SyntaxObject start;
+	private NonTerminal startObject;
 	private Map<String, String> rules;
 
 	public SyntaxTree(String startSymbol, String... rules) {
-		this.start = null;
+		this.startObject = null;
 		this.rules = null;
 
 		this.parseRules(startSymbol, rules);
+	}
+
+	public NonTerminal getStartObject() {
+		return this.startObject;
 	}
 
 	/**
@@ -37,7 +42,7 @@ public class SyntaxTree {
 			throw new LanguageParseException("No Rules could be parsed");
 
 		// For each rule, parse
-		this.start = this.parseRule(new NonTerminal(startRuleName), this.rules.get(startRuleName));
+		this.startObject = this.parseRule(new NonTerminal(startRuleName), this.rules.get(startRuleName));
 	}
 
 	/**
@@ -65,51 +70,51 @@ public class SyntaxTree {
 	 * 
 	 * @param currentSObject
 	 */
-	private SyntaxObject parseRule(NonTerminal currentSObject, String rule) {
-		String ruleName = currentSObject.getName();
-
+	private NonTerminal parseRule(NonTerminal currentSObject, String rule) {
 		String[] ruleComponents = rule.trim().split(" ");
+
 		for (int i = 0; i < ruleComponents.length; i++) {
 			String ruleComponent = ruleComponents[i].trim();
 			boolean additiveRelation = ruleComponents.length > i + 1
-					? !this.isOptionalOperator(ruleComponents[i + 1].trim()) : true;
+					? !SyntaxHelper.isOptionalOperator(ruleComponents[i + 1].trim()) : true;
 			boolean repeating = false;
 			boolean optional = false;
 
-			if (this.isTerminal(ruleComponent)) {
+			if (SyntaxHelper.isTerminal(ruleComponent)) {
 				// Does our terminal contain whitespaces? Check by looking at
 				// the end of our terminal
 				while (!ruleComponent.endsWith("\"") && i + 1 < ruleComponents.length)
 					ruleComponent += " " + ruleComponents[++i];
 
 				// reset additiveRelation since we might have moved i
-				additiveRelation = ruleComponents.length > i + 1 ? !this.isOptionalOperator(ruleComponents[i + 1].trim())
-						: true;
+				additiveRelation = ruleComponents.length > i + 1
+						? !SyntaxHelper.isOptionalOperator(ruleComponents[i + 1].trim()) : true;
 
 				if (!ruleComponent.endsWith("\""))
 					throw new LanguageParseException("String " + ruleComponent + "\" was never closed");
 
-				currentSObject.addSubobject(new Terminal(ruleComponent.substring(1, ruleComponent.length() - 1),
-						additiveRelation, false, false));
-			} else if (this.isOperator(ruleComponent)) {
-				if (this.isOpeningOperator(ruleComponent)) {
+				NonTerminal packageTerminal = new NonTerminal("__TERMINAL__", additiveRelation, false, false);
+				packageTerminal.setTerminal(ruleComponent.substring(1, ruleComponent.length() - 1));
+				currentSObject.addSubobject(packageTerminal);
+			} else if (SyntaxHelper.isOperator(ruleComponent)) {
+				if (SyntaxHelper.isOpeningOperator(ruleComponent)) {
 					// Find matching closing operator
-					int closingIndex = getMatchingClosingOperator(ruleComponents, i);
+					int closingIndex = SyntaxHelper.getMatchingClosingOperator(ruleComponents, i);
 
 					// Which type of bracket?
 					if (ruleComponent.equals("["))
 						optional = true;
-					else if (ruleComponent.equals("{"))
+					if (ruleComponent.equals("{"))
 						repeating = true;
 
 					// Additive? Has to be relative to bracket, thus recalibrate
 					additiveRelation = ruleComponents.length > closingIndex + 1
-							? !this.isOptionalOperator(ruleComponents[closingIndex + 1].trim()) : true;
+							? !SyntaxHelper.isOptionalOperator(ruleComponents[closingIndex + 1].trim()) : true;
 
 					// Group elements in that bracket together into one element
-					String bracketComponents = " ";
+					String bracketComponents = "";
 					for (int j = i + 1; j < closingIndex; j++)
-						bracketComponents += ruleComponents[j] + " ";
+						bracketComponents += ruleComponents[j].trim() + " ";
 
 					// Add to our current Object (Parse bracket recursively)
 					currentSObject.addSubobject(
@@ -129,71 +134,22 @@ public class SyntaxTree {
 				if (nonTerminalRule == null)
 					throw new LanguageParseException("Symbol (" + ruleComponent + ") not defined");
 
+				nonTerminalRule = nonTerminalRule.trim();
 				// Parse recursivly
-				currentSObject.addSubobject(this.parseRule(
-						new NonTerminal(ruleComponent, additiveRelation, false, false), nonTerminalRule.trim()));
+				currentSObject.addSubobject(this
+						.parseRule(new NonTerminal(ruleComponent, additiveRelation, false, false), nonTerminalRule));
 			}
 		}
 
 		return currentSObject;
 	}
 
-	private boolean isTerminal(String ruleComponent) {
-		return ruleComponent.startsWith("\"");
-	}
-
-	private boolean isOptionalOperator(String ruleComponent) {
-		return ruleComponent.equals("|");
-	}
-
-	private boolean isOperator(String ruleComponent) {
-		return ruleComponent.equals("|") || ruleComponent.equals("(") || ruleComponent.equals(")")
-				|| ruleComponent.equals("[") || ruleComponent.equals("]") || ruleComponent.equals("{")
-				|| ruleComponent.equals("}");
-	}
-
-	private boolean isOpeningOperator(String ruleComponent) {
-		return ruleComponent.equals("(") || ruleComponent.equals("[") || ruleComponent.equals("{");
-	}
-
-	private int getMatchingClosingOperator(String[] ruleComponents, int startIndex) {
-		int bracketCount = 1;
-		String openingOperator = ruleComponents[startIndex].trim();
-		String closingOperator = this.getClosingOperator(openingOperator);
-
-		for (int i = startIndex + 1; i < ruleComponents.length; i++) {
-			if (ruleComponents[i].trim().equals(closingOperator))
-				bracketCount--;
-			else if (ruleComponents[i].trim().equals(openingOperator))
-				bracketCount++;
-
-			if (bracketCount == 0)
-				return i;
-		}
-
-		return -1;
-	}
-
-	private String getClosingOperator(String openingOperator) {
-		switch (openingOperator) {
-		case "(":
-			return ")";
-		case "[":
-			return "]";
-		case "{":
-			return "}";
-		default:
-			return "";
-
-		}
-	}
-	
-	public int getObjectCount() {
-		return this.start.getObjectCount();
+	public int getNonTerminalCount() {
+		return this.startObject.getNonTerminalCount();
 	}
 
 	@Override
 	public String toString() {
-		return this.start.toString();
+		return this.startObject.toString();
 	}
 }

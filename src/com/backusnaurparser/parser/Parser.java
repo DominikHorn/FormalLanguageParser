@@ -1,5 +1,6 @@
 package com.backusnaurparser.parser;
 
+import com.backusnaurparser.finitestatemachine.FiniteStateMachine;
 import com.backusnaurparser.helper.LanguageVerificationDevice;
 
 public class Parser {
@@ -10,11 +11,12 @@ public class Parser {
 	}
 
 	public LanguageVerificationDevice getVerificationDevice() {
-		return null;
+		// Create a finiteState machine to verify language stuff	
+		return new FiniteStateMachine(this.syntaxTree);
 	}
 
 	public int getObjectCount() {
-		return this.syntaxTree.getObjectCount();
+		return this.syntaxTree.getNonTerminalCount();
 	}
 
 	@Override
