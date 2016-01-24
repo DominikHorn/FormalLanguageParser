@@ -1,6 +1,8 @@
-package com.backusnaurparser.helper;
+package com.backusnaurparser.parser;
 
 import java.util.*;
+
+import com.backusnaurparser.helper.LanguageParseException;
 
 public class SyntaxTree {
 	private SyntaxObject start;
@@ -11,8 +13,6 @@ public class SyntaxTree {
 		this.rules = null;
 
 		this.parseRules(startSymbol, rules);
-
-		System.out.println("start: " + this.start);
 	}
 
 	/**
@@ -68,10 +68,6 @@ public class SyntaxTree {
 	private SyntaxObject parseRule(NonTerminal currentSObject, String rule) {
 		String ruleName = currentSObject.getName();
 
-		// Is the current rule empty?
-		if (rule.isEmpty())
-			throw new LanguageParseException("Rule (" + ruleName + ") is empty");
-
 		String[] ruleComponents = rule.trim().split(" ");
 		for (int i = 0; i < ruleComponents.length; i++) {
 			String ruleComponent = ruleComponents[i].trim();
@@ -83,8 +79,12 @@ public class SyntaxTree {
 			if (this.isTerminal(ruleComponent)) {
 				// Does our terminal contain whitespaces? Check by looking at
 				// the end of our terminal
-				while (!ruleComponent.endsWith("\"") && ++i < ruleComponents.length)
-					ruleComponent += " " + ruleComponents[i++];
+				while (!ruleComponent.endsWith("\"") && i + 1 < ruleComponents.length)
+					ruleComponent += " " + ruleComponents[++i];
+
+				// reset additiveRelation since we might have moved i
+				additiveRelation = ruleComponents.length > i + 1 ? !this.isOptionalOperator(ruleComponents[i + 1].trim())
+						: true;
 
 				if (!ruleComponent.endsWith("\""))
 					throw new LanguageParseException("String " + ruleComponent + "\" was never closed");
@@ -112,8 +112,9 @@ public class SyntaxTree {
 						bracketComponents += ruleComponents[j] + " ";
 
 					// Add to our current Object (Parse bracket recursively)
-					currentSObject.addSubobject(this.parseRule(
-							new NonTerminal("__BRACKET__", additiveRelation, repeating, optional), bracketComponents.trim()));
+					currentSObject.addSubobject(
+							this.parseRule(new NonTerminal("__BRACKET__", additiveRelation, repeating, optional),
+									bracketComponents.trim()));
 
 					// Set our i behind the bracket
 					i = closingIndex;
@@ -121,7 +122,7 @@ public class SyntaxTree {
 
 				// We will reach this line of code in case of a "|" operator. We
 				// probably won't have to do anything here
-			} else {
+			} else if (!ruleComponent.isEmpty() && !ruleComponent.startsWith(" ")) {
 				// must be a non-terminal. Look @ rule in this.rules where this
 				// nonterminal is defined
 				String nonTerminalRule = this.rules.get(ruleComponent);
@@ -129,8 +130,8 @@ public class SyntaxTree {
 					throw new LanguageParseException("Symbol (" + ruleComponent + ") not defined");
 
 				// Parse recursivly
-				currentSObject.addSubobject(this
-						.parseRule(new NonTerminal(ruleComponent, additiveRelation, false, false), nonTerminalRule.trim()));
+				currentSObject.addSubobject(this.parseRule(
+						new NonTerminal(ruleComponent, additiveRelation, false, false), nonTerminalRule.trim()));
 			}
 		}
 
@@ -185,5 +186,14 @@ public class SyntaxTree {
 			return "";
 
 		}
+	}
+	
+	public int getObjectCount() {
+		return this.start.getObjectCount();
+	}
+
+	@Override
+	public String toString() {
+		return this.start.toString();
 	}
 }

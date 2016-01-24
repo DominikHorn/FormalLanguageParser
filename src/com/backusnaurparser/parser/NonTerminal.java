@@ -1,4 +1,4 @@
-package com.backusnaurparser.helper;
+package com.backusnaurparser.parser;
 
 import java.util.*;
 
@@ -29,6 +29,27 @@ public class NonTerminal extends SyntaxObject {
 
 	@Override
 	public String toString() {
-		return this.name;
+		String output = this.subObjects.size() > 0 ? this.subObjects.get(0).toString() : "-";
+		for (int i = 1; i < this.subObjects.size(); i++) {
+			output += " " + this.subObjects.get(i);
+		}
+
+		output = output.trim();
+		if (this.isOptional())
+			output = " [ " + output + " ]";
+		if (this.isRepeating())
+			output = " { " + output + " }";
+		if (!this.isRelationAdditive())
+			output = output + " |";
+
+		return output;
+	}
+
+	@Override
+	public int getObjectCount() {
+		int objCount = 1;
+		for (SyntaxObject object : this.subObjects)
+			objCount += object.getObjectCount();
+		return objCount;
 	}
 }

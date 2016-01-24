@@ -1,6 +1,6 @@
-package com.backusnaurparser.helper;
+package com.backusnaurparser.parser;
 
-public class SyntaxObject {
+public abstract class SyntaxObject {
 	/* private to neighbor Object on the syntax-tree */
 	protected boolean isAdditiveRelation;
 
@@ -31,4 +31,6 @@ public class SyntaxObject {
 	public boolean isOptional() {
 		return this.isOptional;
 	}
+
+	public abstract int getObjectCount();
 }
