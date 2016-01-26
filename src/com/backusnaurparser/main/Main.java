@@ -82,7 +82,7 @@ public class Main {
 	public void test2LanguageVerificationDevice() {
 		Parser parser = new Parser("Double", "Double = Num [ \".\" Num ] [ Calc ]",
 				"Num = { \"0\" | \"1\" | \"2\" | \"3\" | \"4\" | \"5\" | \"6\" | \"7\" | \"8\" | \"9\" }",
-				"Calc = [ \"_\" ] CalcOperator [ \"_\" ] Num [ \".\" Num ]",
+				"Calc = { \" \" } CalcOperator { \" \" } Num [ \".\" Num ]",
 				"CalcOperator = \"+\" | \"-\" | \"*\" | \"/\"");
 		System.out.println("Parser(" + parser.getObjectCount() + "): " + parser);
 		LanguageVerificationDevice dev = parser.getVerificationDevice();

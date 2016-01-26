@@ -93,6 +93,10 @@ public class SyntaxTree {
 			boolean optional = false;
 
 			if (SyntaxHelper.isTerminal(ruleComponent)) {
+				// is our terminal a whitespace?
+				if (ruleComponent.equals("\""))
+					ruleComponent += " " + ruleComponents[i++];
+
 				// Does our terminal contain whitespaces? Check by looking at
 				// the end of our terminal
 				while (!ruleComponent.endsWith("\"") && i + 1 < ruleComponents.length)
