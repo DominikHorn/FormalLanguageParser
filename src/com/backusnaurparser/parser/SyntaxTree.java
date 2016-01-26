@@ -14,6 +14,18 @@ public class SyntaxTree {
 		this.rules = null;
 
 		this.parseRules(startSymbol, rules);
+
+		// Flatten our graph until it can not be flattened anymore to remove
+		// uneccesary complexity. TODO: Optimize flatten method by flattening
+		// first, then parsing. This can be done by replacing every subrule
+		// within the master rule and then parsing only that
+		int previousObjectCount;
+		do {
+			previousObjectCount = this.getNonTerminalCount();
+
+			// Do the flatten
+			this.flattenGraph();
+		} while (previousObjectCount > this.getNonTerminalCount());
 	}
 
 	public NonTerminal getStartObject() {
@@ -142,6 +154,10 @@ public class SyntaxTree {
 		}
 
 		return currentSObject;
+	}
+
+	private void flattenGraph() {
+		this.parseRules("__RULE__", "__RULE__ = " + this);
 	}
 
 	public int getNonTerminalCount() {

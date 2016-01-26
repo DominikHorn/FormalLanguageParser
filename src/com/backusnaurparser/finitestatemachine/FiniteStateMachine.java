@@ -8,6 +8,7 @@ import com.backusnaurparser.parser.SyntaxTree;
 
 public class FiniteStateMachine implements LanguageVerificationDevice {
 	private MachineState startState;
+	private MachineStateProvider machProvider;
 
 	/**
 	 * Creates finiteStateMachine from syntaxTree
@@ -15,7 +16,8 @@ public class FiniteStateMachine implements LanguageVerificationDevice {
 	 * @param syntaxTree
 	 */
 	public FiniteStateMachine(SyntaxTree syntaxTree) {
-		this.startState = MachineState.getMachineState(0);
+		this.machProvider = new MachineStateProvider();
+		this.startState = this.machProvider.getMachineState(0);
 		List<MachineState> statesToClose = new ArrayList<>();
 		statesToClose.add(this.startState);
 		this.transformNonTerminal(statesToClose, syntaxTree.getStartObject(), syntaxTree.getStartObject().isRepeating(),
@@ -29,7 +31,7 @@ public class FiniteStateMachine implements LanguageVerificationDevice {
 			if (endPoint.getStateNumber() > highestMachineStateNumber)
 				highestMachineStateNumber = endPoint.getStateNumber();
 		}
-		MachineState newState = MachineState.getMachineState(highestMachineStateNumber + 1);
+		MachineState newState = this.machProvider.getMachineState(highestMachineStateNumber + 1);
 
 		for (NonTerminal nterminal : startObject.getSubobjects()) {
 			if (nterminal.isTerminal()) {
@@ -42,12 +44,12 @@ public class FiniteStateMachine implements LanguageVerificationDevice {
 					if (endPoint.getStateNumber() > highestMachineStateNumber)
 						highestMachineStateNumber = endPoint.getStateNumber();
 				}
-				newState = MachineState.getMachineState(highestMachineStateNumber + 1);
-				
-				for (MachineState currentState : endPoints) {						
+				newState = this.machProvider.getMachineState(highestMachineStateNumber + 1);
+
+				for (MachineState currentState : endPoints) {
 					currentState.addOut(newState, nterminal.getTerminal());
-					System.out.println("(" + recursionLevel + ") " + currentState + " -> " + newState + ": "
-							+ nterminal.getTerminal());
+//					System.out.println("(" + recursionLevel + ") " + currentState + " -> " + newState + ": "
+//							+ nterminal.getTerminal());
 
 					// Relation is linear & not optional -> remove Endpoint
 					// from endpoints
@@ -57,32 +59,35 @@ public class FiniteStateMachine implements LanguageVerificationDevice {
 
 				if (isRepeating) {
 					newState.addOut(newState, nterminal.getTerminal());
-					System.out.println("(" + recursionLevel + ") " + newState + " -> " + newState + ": "
-							+ nterminal.getTerminal());
+//					System.out.println("(" + recursionLevel + ") " + newState + " -> " + newState + ": "
+//							+ nterminal.getTerminal());
 				}
 
 				for (MachineState state : endPointsToRemove)
 					endPoints.remove(state);
 			} else {
 				// Non terminal, try to resolve it on a lower level
-				System.out.println("Entering recursion " + nterminal.getName() + "(\"" + nterminal + "\")");
+//				System.out.println("(" + recursionLevel + ") Entering recursion " + nterminal.getName() + "(\""
+//						+ nterminal + "\")");
 				List<MachineState> newEndPoints = this.transformNonTerminal(new ArrayList<>(endPoints), nterminal,
 						nterminal.isRepeating() || isRepeating, nterminal.isOptional() || isOptional,
 						recursionLevel + 1);
-				System.out.println("Exiting recursion " + nterminal.getName() + "(\"" + nterminal + "\")" + " NewEndPoints: " + newEndPoints);
+//				System.out.println("(" + recursionLevel + ") Exiting recursion " + nterminal.getName() + "(\""
+//						+ nterminal + "\")" + " NewEndPoints: " + newEndPoints);
 				for (MachineState endPoint : newEndPoints)
 					if (!endPoints.contains(endPoint)) {
 						endPoints.add(endPoint);
-						System.out.println("(" + recursionLevel + ") Adding endpoint " + endPoint);
+//						System.out.println("(" + recursionLevel + ") Adding endpoint " + endPoint);
 					}
-				
+
 				continue;
 			}
 			if (!isRepeating && newState != null) {
-				if (!endPoints.contains(newState))
-					endPoints.add(newState);
 				if (nterminal.isRelationLinear())
-					newState = MachineState.getMachineState(newState.getStateNumber() + 1);
+					if (!endPoints.contains(newState))
+						endPoints.add(newState);
+				newState = this.machProvider.getMachineState(newState.getStateNumber() + 1);
+
 			}
 		}
 		if (isRepeating && newState != null)
