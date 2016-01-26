@@ -54,7 +54,11 @@ public class SyntaxTree {
 			throw new LanguageParseException("No Rules could be parsed");
 
 		// For each rule, parse
-		this.startObject = this.parseRule(new NonTerminal(startRuleName), this.rules.get(startRuleName));
+		try {
+			this.startObject = this.parseRule(new NonTerminal(startRuleName), this.rules.get(startRuleName));
+		} catch (StackOverflowError e) {
+			throw new LanguageParseException("Infinite recursion can not be parsed at the moment! Use \"{}\"-repeat for workaround!");
+		}
 	}
 
 	/**

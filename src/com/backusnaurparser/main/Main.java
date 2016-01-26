@@ -9,24 +9,20 @@ import com.backusnaurparser.parser.Parser;
 public class Main {
 	public static void main(String[] argv) {
 		System.out.println("USE JUNIT GOD DAMNIT!!!");
-		Parser parser = new Parser("Double", "Double = Num [ \".\" Num ] [ Calc ]",
-				"Num = { \"0\" | \"1\" | \"2\" | \"3\" | \"4\" | \"5\" | \"6\" | \"7\" | \"8\" | \"9\" }",
-				"Calc = [ \" \" ] \"CalcOperator\" [ \" \" ] Num [ \".\" Num ]",
-				"CalcOperator = \"+\" | \"-\" | \"*\" | \"/\"");
 	}
 
 	public static String[] printTmp(String input, LanguageVerificationDevice dev) {
 		String[] returnValue = dev.getNextAllowedInputs(input);
 		MachineState[] states = dev.getNextMachineStates(input);
 		if (returnValue == null || states == null) {
-//			System.out.println("Error for input: \"" + input + "\"");
+			// System.out.println("Error for input: \"" + input + "\"");
 			return returnValue;
 		}
 
-//		System.out.println("\"" + input + "\":");
-//		for (int i = 0; i < returnValue.length; i++) {
-//			System.out.println("\t" + returnValue[i] + " -> " + states[i]);
-//		}
+		// System.out.println("\"" + input + "\":");
+		// for (int i = 0; i < returnValue.length; i++) {
+		// System.out.println("\t" + returnValue[i] + " -> " + states[i]);
+		// }
 
 		return returnValue;
 	}
