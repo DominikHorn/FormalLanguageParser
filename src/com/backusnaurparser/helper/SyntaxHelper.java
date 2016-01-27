@@ -1,5 +1,12 @@
 package com.backusnaurparser.helper;
 
+/**
+ * Helper class that can give certain information about the BackusNaur-Syntax as
+ * well as provide some commonly used functions for parsing
+ * 
+ * @author Dominik Horn
+ *
+ */
 public class SyntaxHelper {
 	public static boolean isTerminal(String ruleComponent) {
 		return ruleComponent.startsWith("\"");
@@ -10,16 +17,19 @@ public class SyntaxHelper {
 	}
 
 	public static boolean isOperator(String ruleComponent) {
-		return ruleComponent.equals("|") || ruleComponent.equals("(") || ruleComponent.equals(")")
-				|| ruleComponent.equals("[") || ruleComponent.equals("]") || ruleComponent.equals("{")
+		return ruleComponent.equals("|") || ruleComponent.equals("(")
+				|| ruleComponent.equals(")") || ruleComponent.equals("[")
+				|| ruleComponent.equals("]") || ruleComponent.equals("{")
 				|| ruleComponent.equals("}");
 	}
 
 	public static boolean isOpeningOperator(String ruleComponent) {
-		return ruleComponent.equals("(") || ruleComponent.equals("[") || ruleComponent.equals("{");
+		return ruleComponent.equals("(") || ruleComponent.equals("[")
+				|| ruleComponent.equals("{");
 	}
 
-	public static int getMatchingClosingOperator(String[] ruleComponents, int startIndex) {
+	public static int getMatchingClosingOperator(String[] ruleComponents,
+			int startIndex) {
 		int bracketCount = 1;
 		String openingOperator = ruleComponents[startIndex].trim();
 		String closingOperator = getClosingOperator(openingOperator);

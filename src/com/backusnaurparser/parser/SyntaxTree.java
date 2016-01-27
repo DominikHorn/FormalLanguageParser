@@ -5,10 +5,27 @@ import java.util.*;
 import com.backusnaurparser.helper.LanguageParseException;
 import com.backusnaurparser.helper.SyntaxHelper;
 
+/**
+ * SyntaxTree is a tree structure that stores the EBNF Grammar in a more
+ * computer-friendly way
+ * 
+ * @author Dominik Horn
+ *
+ */
 public class SyntaxTree {
+	/** Root object of this tree */
 	private NonTerminal startObject;
+
+	/** All rules in a dictionary, where <RuleName> is the key */
 	private Map<String, String> rules;
 
+	/***
+	 * See Parser's constructor's documentation for information. Note: This
+	 * method should not be called directly, use Parser() instead
+	 * 
+	 * @param startSymbol
+	 * @param rules
+	 */
 	public SyntaxTree(String startSymbol, String... rules) {
 		this.startObject = null;
 		this.rules = null;
@@ -28,6 +45,11 @@ public class SyntaxTree {
 		} while (previousObjectCount > this.getNonTerminalCount());
 	}
 
+	/**
+	 * See "startObject"'s documentation
+	 * 
+	 * @return
+	 */
 	public NonTerminal getStartObject() {
 		return this.startObject;
 	}
@@ -41,7 +63,6 @@ public class SyntaxTree {
 	 *            collection of all rules in backus naur-syntax that define your
 	 *            language
 	 * 
-	 * @return start object of this syntax tree
 	 */
 	private void parseRules(String startRuleName, String... stringRules) {
 		if (stringRules.length <= 0)
@@ -55,16 +76,17 @@ public class SyntaxTree {
 
 		// For each rule, parse
 		try {
-			this.startObject = this.parseRule(new NonTerminal(startRuleName), this.rules.get(startRuleName));
+			this.startObject = this.parseRule(new NonTerminal(startRuleName),
+					this.rules.get(startRuleName));
 		} catch (StackOverflowError e) {
-			throw new LanguageParseException("Infinite recursion can not be parsed at the moment! Use \"{}\"-repeat for workaround!");
+			throw new LanguageParseException(
+					"Infinite recursion can not be parsed at the moment! Use \"{}\"-repeat for workaround!");
 		}
 	}
 
 	/**
-	 * Sorts through all rules and puts them into a more comprehensive format
+	 * Sorts through all rules and puts them into the "rules" dictionary
 	 * 
-	 * @return
 	 */
 	private void getRules(String... stringRules) {
 		this.rules = new HashMap<>();
@@ -73,7 +95,8 @@ public class SyntaxTree {
 		for (String rule : stringRules) {
 			// Syntax verification
 			if (!rule.contains("=") || rule.split("=").length != 2)
-				throw new LanguageParseException("Invalid Rule: " + rule + ".\nNumber of \"=\" does not match 1");
+				throw new LanguageParseException("Invalid Rule: " + rule
+						+ ".\nNumber of \"=\" does not match 1");
 
 			String[] ruleComponents = rule.split("=");
 			this.rules.put(ruleComponents[0].trim(), ruleComponents[1]);
@@ -81,18 +104,23 @@ public class SyntaxTree {
 	}
 
 	/**
-	 * Recursive method that parses the rule for this nonTerminal, parsing
-	 * subrules on it's journey
+	 * Method that parses the rule for this nonTerminal, parsing subrules
+	 * recursively upon finding them
 	 * 
 	 * @param currentSObject
+	 *            Current object in the syntax tree that this rule corresponds
+	 *            to
+	 * @param rule
+	 *            Current rule that needs to be parsed
+	 * @return NonTerminal object/subtree that holds parsed rule
 	 */
 	private NonTerminal parseRule(NonTerminal currentSObject, String rule) {
 		String[] ruleComponents = rule.trim().split(" ");
 
 		for (int i = 0; i < ruleComponents.length; i++) {
 			String ruleComponent = ruleComponents[i].trim();
-			boolean additiveRelation = ruleComponents.length > i + 1
-					? !SyntaxHelper.isOptionalOperator(ruleComponents[i + 1].trim()) : true;
+			boolean additiveRelation = ruleComponents.length > i + 1 ? !SyntaxHelper
+					.isOptionalOperator(ruleComponents[i + 1].trim()) : true;
 			boolean repeating = false;
 			boolean optional = false;
 
@@ -103,23 +131,29 @@ public class SyntaxTree {
 
 				// Does our terminal contain whitespaces? Check by looking at
 				// the end of our terminal
-				while (!ruleComponent.endsWith("\"") && i + 1 < ruleComponents.length)
+				while (!ruleComponent.endsWith("\"")
+						&& i + 1 < ruleComponents.length)
 					ruleComponent += " " + ruleComponents[++i];
 
 				// reset additiveRelation since we might have moved i
-				additiveRelation = ruleComponents.length > i + 1
-						? !SyntaxHelper.isOptionalOperator(ruleComponents[i + 1].trim()) : true;
+				additiveRelation = ruleComponents.length > i + 1 ? !SyntaxHelper
+						.isOptionalOperator(ruleComponents[i + 1].trim())
+						: true;
 
 				if (!ruleComponent.endsWith("\""))
-					throw new LanguageParseException("String " + ruleComponent + "\" was never closed");
+					throw new LanguageParseException("String " + ruleComponent
+							+ "\" was never closed");
 
-				NonTerminal packageTerminal = new NonTerminal("__TERMINAL__", additiveRelation, false, false);
-				packageTerminal.setTerminal(ruleComponent.substring(1, ruleComponent.length() - 1));
+				NonTerminal packageTerminal = new NonTerminal("__TERMINAL__",
+						additiveRelation, false, false);
+				packageTerminal.setTerminal(ruleComponent.substring(1,
+						ruleComponent.length() - 1));
 				currentSObject.addSubobject(packageTerminal);
 			} else if (SyntaxHelper.isOperator(ruleComponent)) {
 				if (SyntaxHelper.isOpeningOperator(ruleComponent)) {
 					// Find matching closing operator
-					int closingIndex = SyntaxHelper.getMatchingClosingOperator(ruleComponents, i);
+					int closingIndex = SyntaxHelper.getMatchingClosingOperator(
+							ruleComponents, i);
 
 					// Which type of bracket?
 					if (ruleComponent.equals("["))
@@ -128,8 +162,10 @@ public class SyntaxTree {
 						repeating = true;
 
 					// Additive? Has to be relative to bracket, thus recalibrate
-					additiveRelation = ruleComponents.length > closingIndex + 1
-							? !SyntaxHelper.isOptionalOperator(ruleComponents[closingIndex + 1].trim()) : true;
+					additiveRelation = ruleComponents.length > closingIndex + 1 ? !SyntaxHelper
+							.isOptionalOperator(ruleComponents[closingIndex + 1]
+									.trim())
+							: true;
 
 					// Group elements in that bracket together into one element
 					String bracketComponents = "";
@@ -137,9 +173,9 @@ public class SyntaxTree {
 						bracketComponents += ruleComponents[j].trim() + " ";
 
 					// Add to our current Object (Parse bracket recursively)
-					currentSObject.addSubobject(
-							this.parseRule(new NonTerminal("__BRACKET__", additiveRelation, repeating, optional),
-									bracketComponents.trim()));
+					currentSObject.addSubobject(this.parseRule(new NonTerminal(
+							"__BRACKET__", additiveRelation, repeating,
+							optional), bracketComponents.trim()));
 
 					// Set our i behind the bracket
 					i = closingIndex;
@@ -147,31 +183,49 @@ public class SyntaxTree {
 
 				// We will reach this line of code in case of a "|" operator. We
 				// probably won't have to do anything here
-			} else if (!ruleComponent.isEmpty() && !ruleComponent.startsWith(" ")) {
+			} else if (!ruleComponent.isEmpty()
+					&& !ruleComponent.startsWith(" ")) {
 				// must be a non-terminal. Look @ rule in this.rules where this
 				// nonterminal is defined
 				String nonTerminalRule = this.rules.get(ruleComponent);
 				if (nonTerminalRule == null)
-					throw new LanguageParseException("Symbol (" + ruleComponent + ") not defined");
+					throw new LanguageParseException("Symbol (" + ruleComponent
+							+ ") not defined");
 
 				nonTerminalRule = nonTerminalRule.trim();
 				// Parse recursivly
-				currentSObject.addSubobject(this
-						.parseRule(new NonTerminal(ruleComponent, additiveRelation, false, false), nonTerminalRule));
+				currentSObject.addSubobject(this.parseRule(new NonTerminal(
+						ruleComponent, additiveRelation, false, false),
+						nonTerminalRule));
 			}
 		}
 
 		return currentSObject;
 	}
 
+	/**
+	 * This method flattens the graph by parsing it's toString() result again.
+	 * (toString replaces every <RuleName> by the rule's content, resulting in
+	 * the flattest graph possible
+	 * 
+	 * TODO: replace method with prettier solution
+	 */
 	private void flattenGraph() {
 		this.parseRules("__RULE__", "__RULE__ = " + this);
 	}
 
+	/**
+	 * Retrieves amount of NonTerminal Objects in this Graph
+	 * 
+	 * @return
+	 */
 	public int getNonTerminalCount() {
 		return this.startObject.getNonTerminalCount();
 	}
 
+	/**
+	 * Don't!!!! Touch this method as it is needed for flattenGraph()
+	 */
 	@Override
 	public String toString() {
 		return this.startObject.toString();
