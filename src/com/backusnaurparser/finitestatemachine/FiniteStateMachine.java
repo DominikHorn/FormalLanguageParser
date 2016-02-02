@@ -116,50 +116,67 @@ public class FiniteStateMachine implements LanguageVerificationDevice {
 		return statesToBeClosed;
 	}
 
-	@Override
-	public String[] getNextAllowedInputs(String previousInput) {
-		MachineState currentState = this.startState;
+	  @Override
+  public String[] getNextAllowedInputs(String previousInput) {
+    MachineState currentState = this.startState;
+    Map<String[], MachineState> outs = currentState.getOuts();
 
-		while (currentState != null) {
-			Map<String[], MachineState> outs = currentState.getOuts();
-			String matchingOut = "";
-			for (String[] out : outs.keySet()) {
-				for (String string : out) {
-					if (previousInput.startsWith(string)) {
-						// Found match
-						matchingOut = string;
-						currentState = outs.get(out);
-						break;
-					}
-				}
-				if (!matchingOut.isEmpty())
-					break;
-			}
+    while (currentState != null && !previousInput.isEmpty() && !outs.isEmpty()) {
+      // Determine matching input
+      boolean foundMatch = false;
+      for (String[] out : outs.keySet()) {
+        for (String outString : out) {
+          foundMatch = true;
+          int charPosition = 0;
 
-			// If we found no matching out from our current state the input must
-			// be invalid
-			if (matchingOut.isEmpty())
-				return null;
+          // !Match?
+          for (charPosition = 0; charPosition < outString.length(); charPosition++) {
+            if (previousInput.length() <= charPosition) {
+              foundMatch = true;
+              break;
+            }
 
-			previousInput = previousInput.substring(matchingOut.length());
+            if (previousInput.charAt(charPosition) != outString
+                .charAt(charPosition)) {
+              foundMatch = false;
+              break;
+            }
+          }
+          if (foundMatch) {
+            if (charPosition == outString.length()) {
+              // Advance to next state
+              currentState = outs.get(out);
+              previousInput = previousInput.substring(charPosition);
+              outs = currentState.getOuts();
 
-			if (previousInput.isEmpty()) {
-				// Stuck at this state, return all possible outs
-				List<String> possibleOuts = new ArrayList<>();
-				Map<String[], MachineState> currentOuts = currentState
-						.getOuts();
-				for (String[] out : currentOuts.keySet())
-					for (String string : out)
-						possibleOuts.add(string);
+              if (outs.isEmpty() && !previousInput.isEmpty())
+                return null;
 
-				String[] returnValues = new String[possibleOuts.size()];
-				for (int i = 0; i < possibleOuts.size(); i++)
-					returnValues[i] = possibleOuts.get(i);
+            } else {
+              return new String[] { outString };
+            }
+          } else {
+            return null;
+          }
+        }
+      }
+    }
 
-				return returnValues;
-			}
-		}
+    return makeStringArray(outs.keySet());
+  }
 
-		return null;
-	}
+  private String[] makeStringArray(Set<String[]> objectArray) {
+    int length = 0;
+    for (String[] array : objectArray)
+      length += array.length;
+
+    String[] resultArray = new String[length];
+    int i = 0;
+    for (String[] array : objectArray) {
+      for (String out : array)
+        resultArray[i++] = out;
+    }
+
+    return resultArray;
+  }
 }
