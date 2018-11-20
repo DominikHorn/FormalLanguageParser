@@ -8,6 +8,5 @@ Quick Documentation:
 See examples provided within the Main class for further info on how to use this code.
 
 
-
-Known Issues:
-   * Infinite Recursion can't be parsed (e.g.: Rule = Rule | " "), you must use "{}" repeat to specify your language (e.g. instead of previous example do: Rule = " " { " " })
+# NOTE:
+* I now know a a lot more about theoretical computer science to understand, that this approach will only work for a narrow subset of all formal languages. This project won't be deleted because it still is a part of my past work efforts.
