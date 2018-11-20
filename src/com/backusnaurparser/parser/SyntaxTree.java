@@ -13,221 +13,281 @@ import com.backusnaurparser.helper.SyntaxHelper;
  *
  */
 public class SyntaxTree {
-	/** Root object of this tree */
-	private NonTerminal startObject;
+  private static final String EBNF_ALTERNATIVE = "|";
 
-	/** All rules in a dictionary, where <RuleName> is the key */
-	private Map<String, String> rules;
+  private static final char EBNF_DEFINITION = '=';
 
-	/***
-	 * See Parser's constructor's documentation for information. Note: This
-	 * method should not be called directly, use Parser() instead
-	 * 
-	 * @param startSymbol
-	 * @param rules
-	 */
-	public SyntaxTree(String startSymbol, String... rules) {
-		this.startObject = null;
-		this.rules = null;
+  private static final char EBNF_RULE_TERMINATOR = ';';
 
-		this.parseRules(startSymbol, rules);
+  private static final char EBNF_OPTIONAL_OPEN = '[';
 
-		// Flatten our graph until it can not be flattened anymore to remove
-		// uneccesary complexity. TODO: Optimize flatten method by flattening
-		// first, then parsing. This can be done by replacing every subrule
-		// within the master rule and then parsing only that
-		int previousObjectCount;
-		do {
-			previousObjectCount = this.getNonTerminalCount();
+  private static final char EBNF_OPTIONAL_CLOSE = ']';
 
-			// Do the flatten
-			this.flattenGraph();
-		} while (previousObjectCount > this.getNonTerminalCount());
-	}
+  private static final char EBNF_REPEAT_OPEN = '{';
 
-	/**
-	 * See "startObject"'s documentation
-	 * 
-	 * @return
-	 */
-	public NonTerminal getStartObject() {
-		return this.startObject;
-	}
+  private static final char EBNF_REPEAT_CLOSE = '}';
 
-	/**
-	 * Creates a SyntaxTree from given rules
-	 * 
-	 * @param startRuleName
-	 *            start symbol
-	 * @param stringRules
-	 *            collection of all rules in backus naur-syntax that define your
-	 *            language
-	 * 
-	 */
-	private void parseRules(String startRuleName, String... stringRules) {
-		if (stringRules.length <= 0)
-			throw new LanguageParseException("No Rules were given");
+  private static final char EBNF_GROUP_OPEN = '(';
 
-		// Sort all rules
-		this.getRules(stringRules);
+  private static final char EBNF_GROUP_CLOSE = ')';
 
-		if (rules.isEmpty())
-			throw new LanguageParseException("No Rules could be parsed");
+  private static final char EBNF_TERMINAL_MARKER_1 = '"';
 
-		// For each rule, parse
-		try {
-			this.startObject = this.parseRule(new NonTerminal(startRuleName),
-					this.rules.get(startRuleName));
-		} catch (StackOverflowError e) {
-			throw new LanguageParseException(
-					"Infinite recursion can not be parsed at the moment! Use \"{}\"-repeat for workaround!");
-		}
-	}
+  private static final char EBNF_TERMINAL_MARKER_2 = '\'';
 
-	/**
-	 * Sorts through all rules and puts them into the "rules" dictionary
-	 * 
-	 */
-	private void getRules(String... stringRules) {
-		this.rules = new HashMap<>();
+  /** Root object of this tree */
+  private NonTerminal startObject;
 
-		// Get individual rules
-		for (String rule : stringRules) {
-			// Syntax verification
-			if (!rule.contains("=") || rule.split("=").length != 2)
-				throw new LanguageParseException("Invalid Rule: " + rule
-						+ ".\nNumber of \"=\" does not match 1");
+  /** All rules in a dictionary, where <RuleName> is the key */
+  private Map<String, String> rules;
 
-			String[] ruleComponents = rule.split("=");
-			this.rules.put(ruleComponents[0].trim(), ruleComponents[1]);
-		}
-	}
+  /***
+   * See Parser's constructor's documentation for information. Note: This method
+   * should not be called directly, use Parser() instead
+   * 
+   * @param startSymbol
+   * @param rules
+   */
+  public SyntaxTree(String startSymbol, String... rules) {
+    this.startObject = null;
+    this.rules = null;
 
-	/**
-	 * Method that parses the rule for this nonTerminal, parsing subrules
-	 * recursively upon finding them
-	 * 
-	 * @param currentSObject
-	 *            Current object in the syntax tree that this rule corresponds
-	 *            to
-	 * @param rule
-	 *            Current rule that needs to be parsed
-	 * @return NonTerminal object/subtree that holds parsed rule
-	 */
-	private NonTerminal parseRule(NonTerminal currentSObject, String rule) {
-		String[] ruleComponents = rule.trim().split(" ");
+    this.parseRules(startSymbol, rules);
+  }
 
-		for (int i = 0; i < ruleComponents.length; i++) {
-			String ruleComponent = ruleComponents[i].trim();
-			boolean additiveRelation = ruleComponents.length > i + 1 ? !SyntaxHelper
-					.isOptionalOperator(ruleComponents[i + 1].trim()) : true;
-			boolean repeating = false;
-			boolean optional = false;
+  /**
+   * See "startObject"'s documentation
+   * 
+   * @return
+   */
+  public NonTerminal getStartObject() {
+    return this.startObject;
+  }
 
-			if (SyntaxHelper.isTerminal(ruleComponent)) {
-				// is our terminal a whitespace?
-				if (ruleComponent.equals("\""))
-					ruleComponent += " " + ruleComponents[i++];
+  /**
+   * Creates a SyntaxTree from given rules
+   * 
+   * @param startRuleName
+   *          start symbol
+   * @param stringRules
+   *          collection of all rules in backus naur-syntax that define your
+   *          language
+   * 
+   */
+  private void parseRules(String startRuleName, String... stringRules) {
+    if (stringRules.length <= 0)
+      throw new LanguageParseException("No Rules were given");
 
-				// Does our terminal contain whitespaces? Check by looking at
-				// the end of our terminal
-				while (!ruleComponent.endsWith("\"")
-						&& i + 1 < ruleComponents.length)
-					ruleComponent += " " + ruleComponents[++i];
+    // Sort all rules
+    this.getRules(stringRules);
 
-				// reset additiveRelation since we might have moved i
-				additiveRelation = ruleComponents.length > i + 1 ? !SyntaxHelper
-						.isOptionalOperator(ruleComponents[i + 1].trim())
-						: true;
+    if (rules.isEmpty())
+      throw new LanguageParseException("No Rules could be parsed");
 
-				if (!ruleComponent.endsWith("\""))
-					throw new LanguageParseException("String " + ruleComponent
-							+ "\" was never closed");
+    this.startObject = this.parseRule(rules.get(startRuleName));
+  }
 
-				NonTerminal packageTerminal = new NonTerminal("__TERMINAL__",
-						additiveRelation, false, false);
-				packageTerminal.setTerminal(ruleComponent.substring(1,
-						ruleComponent.length() - 1));
-				currentSObject.addSubobject(packageTerminal);
-			} else if (SyntaxHelper.isOperator(ruleComponent)) {
-				if (SyntaxHelper.isOpeningOperator(ruleComponent)) {
-					// Find matching closing operator
-					int closingIndex = SyntaxHelper.getMatchingClosingOperator(
-							ruleComponents, i);
+  /**
+   * Sorts through all rules and puts them into the "rules" dictionary
+   * 
+   */
+  private void getRules(String... stringRules) {
+    this.rules = new HashMap<>();
 
-					// Which type of bracket?
-					if (ruleComponent.equals("["))
-						optional = true;
-					if (ruleComponent.equals("{"))
-						repeating = true;
+    // Get individual rules
+    for (String rule : stringRules) {
+      // Syntax verification
+      if (!rule.contains("" + EBNF_DEFINITION)
+          || rule.split("" + EBNF_DEFINITION).length != 2)
+        throw new LanguageParseException("Invalid Rule: " + rule
+            + ".\nCount of \"" + EBNF_DEFINITION + "\" does not match 1");
 
-					// Additive? Has to be relative to bracket, thus recalibrate
-					additiveRelation = ruleComponents.length > closingIndex + 1 ? !SyntaxHelper
-							.isOptionalOperator(ruleComponents[closingIndex + 1]
-									.trim())
-							: true;
+      String[] ruleComponents = rule.split("" + EBNF_DEFINITION);
+      this.rules.put(ruleComponents[0].trim(), ruleComponents[1].trim());
+    }
+  }
 
-					// Group elements in that bracket together into one element
-					String bracketComponents = "";
-					for (int j = i + 1; j < closingIndex; j++)
-						bracketComponents += ruleComponents[j].trim() + " ";
+  /**
+   * Method that parses the rule for this nonTerminal, parsing subrules
+   * recursively upon finding them
+   * 
+   * @param currentSObject
+   *          Current object in the syntax tree that this rule corresponds to
+   * @param rule
+   *          Current rule that needs to be parsed
+   * @return NonTerminal object/subtree that holds parsed rule
+   */
+  private NonTerminal parseRule(String rule) {
+    // Validate rule to avoid messing with annoying errors
+    if (!isValidRule(rule))
+      return null;
 
-					// Add to our current Object (Parse bracket recursively)
-					currentSObject.addSubobject(this.parseRule(new NonTerminal(
-							"__BRACKET__", additiveRelation, repeating,
-							optional), bracketComponents.trim()));
+    NonTerminal nonTerminal = new NonTerminal(rule);
 
-					// Set our i behind the bracket
-					i = closingIndex;
-				}
+    // Splits rule into high level components
+    List<String> ruleComponents = getRuleComponents(rule);
+    for (int i = 0; i < ruleComponents.size(); i++) {
+      String currentRuleComponent = ruleComponents.get(i);
 
-				// We will reach this line of code in case of a "|" operator. We
-				// probably won't have to do anything here
-			} else if (!ruleComponent.isEmpty()
-					&& !ruleComponent.startsWith(" ")) {
-				// must be a non-terminal. Look @ rule in this.rules where this
-				// nonterminal is defined
-				String nonTerminalRule = this.rules.get(ruleComponent);
-				if (nonTerminalRule == null)
-					throw new LanguageParseException("Symbol (" + ruleComponent
-							+ ") not defined");
+      // Which kind of component is this?
+      if (currentRuleComponent.startsWith("" + EBNF_GROUP_OPEN)) {
+        // Grouping -> simply remove as grouping is covered because this
+        // subrule will be one level bellow current level on the AST and thus
+        // automatically be grouped correctly
+        currentRuleComponent = currentRuleComponent.substring(1,
+            currentRuleComponent.length() - 1).trim();
+        NonTerminal groupTerminal = parseRule(currentRuleComponent);
+        if (i < ruleComponents.size() - 1)
+          if (ruleComponents.get(i + 1).equals(EBNF_ALTERNATIVE))
+            groupTerminal.setRelationLinear(false);
+        nonTerminal.addSubobject(groupTerminal);
+      } else if (currentRuleComponent.startsWith("" + EBNF_REPEAT_OPEN)) {
+        // Repeat -> set returned object to be a repeating object
+        currentRuleComponent = currentRuleComponent.substring(1,
+            currentRuleComponent.length() - 1).trim();
+        NonTerminal repeatTerminal = parseRule(currentRuleComponent);
+        repeatTerminal.setRepeating(true);
+        if (i < ruleComponents.size() - 1)
+          if (ruleComponents.get(i + 1).equals(EBNF_ALTERNATIVE))
+            repeatTerminal.setRelationLinear(false);
+        nonTerminal.addSubobject(parseRule(currentRuleComponent));
+      } else if (currentRuleComponent.startsWith("" + EBNF_OPTIONAL_OPEN)) {
+        // Optional -> Set returned object to be an optional object
+        currentRuleComponent = currentRuleComponent.substring(1,
+            currentRuleComponent.length() - 1).trim();
+        NonTerminal optionalTerminal = parseRule(currentRuleComponent);
+        optionalTerminal.setOptional(true);
+        if (i < ruleComponents.size() - 1)
+          if (ruleComponents.get(i + 1).equals(EBNF_ALTERNATIVE))
+            optionalTerminal.setRelationLinear(false);
+        nonTerminal.addSubobject(parseRule(currentRuleComponent));
+      } else if (!currentRuleComponent.equals(EBNF_ALTERNATIVE)) {
+        // Flat component -> Actual parsing
+        NonTerminal subTerminal = null;
 
-				nonTerminalRule = nonTerminalRule.trim();
-				// Parse recursivly
-				currentSObject.addSubobject(this.parseRule(new NonTerminal(
-						ruleComponent, additiveRelation, false, false),
-						nonTerminalRule));
-			}
-		}
+        // Terminal or non terminal?
+        if (!(currentRuleComponent.startsWith("" + EBNF_TERMINAL_MARKER_1) || currentRuleComponent
+            .startsWith("" + EBNF_TERMINAL_MARKER_2))) {
+          // find and parse new rule
+          if (!rules.containsKey(currentRuleComponent))
+            throw new LanguageParseException("Could not find subrule \""
+                + currentRuleComponent + "\"");
 
-		return currentSObject;
-	}
+          subTerminal = parseRule(rules.get(currentRuleComponent));
+        } else {
+          subTerminal = new NonTerminal(currentRuleComponent);
+          subTerminal.setTerminal(currentRuleComponent.substring(1,
+              currentRuleComponent.length() - 1));
+        }
 
-	/**
-	 * This method flattens the graph by parsing it's toString() result again.
-	 * (toString replaces every <RuleName> by the rule's content, resulting in
-	 * the flattest graph possible
-	 * 
-	 * TODO: replace method with prettier solution
-	 */
-	private void flattenGraph() {
-		this.parseRules("__RULE__", "__RULE__ = " + this);
-	}
+        if (i < ruleComponents.size() - 1)
+          if (ruleComponents.get(i + 1).equals(EBNF_ALTERNATIVE))
+            subTerminal.setRelationLinear(false);
+      }
+    }
 
-	/**
-	 * Retrieves amount of NonTerminal Objects in this Graph
-	 * 
-	 * @return
-	 */
-	public int getNonTerminalCount() {
-		return this.startObject.getNonTerminalCount();
-	}
+    return nonTerminal;
+  }
 
-	/**
-	 * Don't!!!! Touch this method as it is needed for flattenGraph()
-	 */
-	@Override
-	public String toString() {
-		return this.startObject.toString();
-	}
+  private boolean isValidRule(String rule) {
+    if (countMatches(rule, EBNF_GROUP_OPEN) != countMatches(rule,
+        EBNF_GROUP_CLOSE))
+      return false;
+    if (countMatches(rule, EBNF_OPTIONAL_OPEN) != countMatches(rule,
+        EBNF_OPTIONAL_CLOSE))
+      return false;
+    if (countMatches(rule, EBNF_REPEAT_OPEN) != countMatches(rule,
+        EBNF_REPEAT_CLOSE))
+      return false;
+    if (countMatches(rule, EBNF_TERMINAL_MARKER_1) % 2 != 0)
+      return false;
+    if (countMatches(rule, EBNF_TERMINAL_MARKER_2) % 2 != 0)
+      return false;
+    if (countMatches(rule, EBNF_RULE_TERMINATOR) > 1)
+      return false;
+
+    return true;
+  }
+
+  private int countMatches(String string, char toMatch) {
+    int matchCount = 0;
+    for (int i = 0; i < string.length(); i++)
+      if (string.charAt(i) == toMatch)
+        matchCount++;
+
+    return matchCount;
+  }
+
+  /**
+   * Splits rule into logical components
+   * 
+   * @param rule
+   * @return
+   */
+  private ArrayList<String> getRuleComponents(String rule) {
+    ArrayList<String> ruleComponents = new ArrayList<>();
+    int lastHitIndex = 0;
+    for (int i = 0; i < rule.length(); i++) {
+      switch (rule.charAt(i)) {
+        case EBNF_TERMINAL_MARKER_1:
+        case EBNF_TERMINAL_MARKER_2:
+        case EBNF_GROUP_OPEN:
+        case EBNF_OPTIONAL_OPEN:
+        case EBNF_REPEAT_OPEN:
+          // Find matching closing
+          for (int j = i + 1; j < rule.length(); j++) {
+            if (rule.charAt(j) == getMatchingClosing(rule.charAt(i))) {
+              // Matching found, add to ruleComponents and call quits
+              ruleComponents.add(rule.substring(i, j + 1).trim());
+              i = j + 1;
+              lastHitIndex = i;
+              break;
+            }
+          }
+
+          break;
+        case ' ':
+          ruleComponents.add(rule.substring(lastHitIndex, i).trim());
+          lastHitIndex = i + 1;
+        default:
+          break;
+      }
+    }
+
+    return ruleComponents;
+  }
+
+  private char getMatchingClosing(char opening) {
+    switch (opening) {
+      case EBNF_TERMINAL_MARKER_1:
+        return EBNF_TERMINAL_MARKER_1;
+      case EBNF_TERMINAL_MARKER_2:
+        return EBNF_TERMINAL_MARKER_2;
+      case EBNF_GROUP_OPEN:
+        return EBNF_GROUP_CLOSE;
+      case EBNF_OPTIONAL_OPEN:
+        return EBNF_OPTIONAL_CLOSE;
+      case EBNF_REPEAT_OPEN:
+        return EBNF_REPEAT_CLOSE;
+      default:
+        return '\0';
+    }
+  }
+
+  /**
+   * Retrieves amount of NonTerminal Objects in this Graph
+   * 
+   * @return
+   */
+  public int getNonTerminalCount() {
+    return this.startObject.getNonTerminalCount();
+  }
+
+  /**
+   * Don't!!!! Touch this method as it is needed for flattenGraph()
+   */
+  @Override
+  public String toString() {
+    return this.startObject.toString();
+  }
 }
